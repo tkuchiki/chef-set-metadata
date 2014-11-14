@@ -1,0 +1,127 @@
+#!/usr/bin/env ruby
+
+require 'optparse'
+require 'chef/config'
+require 'chef/cookbook/metadata'
+require 'chef/knife/cookbook_create'
+
+@parsed_args = {}
+@depends     = {}
+@pattern1    = /include_(attribute|recipe)\s+['"](.+)['"]/
+@pattern2    = /include_(attribute|recipe)\(\s*['"](.+)['"]\s*\)/
+
+def check_license(license_name)
+  licenses = ["apachev2", "gplv2", "gplv3", "mit", "none"]
+  unless licenses.include?(license_name)
+    puts("Invalid license: [#{licenses.join(', ')}] defined")
+    exit 1
+  end
+end
+
+def check_cookbook_root(cookbook_root)
+  if cookbook_root.nil?
+    puts("-c|--config or --cookbook is required")
+    exit 1
+  end
+end
+
+def retrieve_cookbook_root()
+  return @parsed_args[:cookbook] unless @parsed_args[:cookbook].nil?
+
+  Chef::Config.from_file(@parsed_args[:config])
+  return Chef::Config[:cookbook_path]
+end
+
+def incremental_file_search(dir, cookbook_name)
+  Dir.glob(dir + '/**/*').each do |filepath|
+    check_file(filepath, cookbook_name) if File.file?(filepath)
+  end
+end
+
+def check_file(filename, cookbook_name)
+  File.open(filename, "r") do |file|
+    file.each_line do |line|
+      set_depends(line, @pattern1, cookbook_name)
+      set_depends(line, @pattern2, cookbook_name)
+    end
+  end
+end
+
+def set_depends(str, pattern, cookbook_name)
+  str =~ pattern
+  if $1 != nil
+    depend = $2.split("::")[0]
+    @depends[cookbook_name] = [] if @depends[cookbook_name].nil?
+    @depends[cookbook_name].push(depend) if !@depends[cookbook_name].include?(depend) && cookbook_name != depend
+  end
+end
+
+def diff_array(dest, src)
+  diff = []
+
+  dest.each do |elem|
+    unless src.include?(elem)
+      diff.push(elem)
+    end
+  end
+
+  diff
+end
+
+def set_depends_metadatarb(metadata_path, cookbook_name)
+  metadata = Chef::Cookbook::Metadata.new
+  metadata.from_file(metadata_path)
+
+  diff_depends = diff_array(@depends[cookbook_name], metadata.dependencies.keys)
+
+  diff_depends.each do |dep|
+    File.open(metadata_path, "a") do |file|
+      file.puts("depends          '#{dep}'")
+      puts("Added depends #{dep} in #{metadata_path}")
+    end
+  end
+end
+
+OptionParser.new do |opt|
+  opt.on("-c FILE_PATH", "--config FILE_PATH", "The configuration file to use"){|v| @parsed_args[:config] = v }
+  opt.on("--cookbook COOKBOO_DIR", "Path to cookbook"){|v| @parsed_args[:cookbook] = v }
+  opt.on("--copyright [COPYRIGHT]", "Copyright (default YOUR_COMPANY_NAME)"){|v| @parsed_args[:copyright] = v }
+  opt.on("-e [MAIL]", "--email [MAIL]", "Email (default YOUR_EMAIL)"){|v| @parsed_args[:email] = v }
+  opt.on("-l [LICENSE]", "--license [LICENSE]", "License (default none)"){|v| @parsed_args[:license] = v }
+  opt.on("-r [FORMAT]", "--readme-format [FORMAT]", "README format (default .md)"){|v| @parsed_args[:readme_format] = v }
+  opt.parse!(ARGV)
+end
+
+@parsed_args[:license] = @parsed_args[:license] || "none"
+check_license(@parsed_args[:license])
+
+cookbook_root = retrieve_cookbook_root()
+check_cookbook_root(cookbook_root)
+
+license       = @parsed_args[:license]
+copyright     = @parsed_args[:copyright]     || "YOUR_COMPANY_NAME"
+email         = @parsed_args[:email]         || "YOUR_EMAIL"
+readme_format = @parsed_args[:readme_format] || "md"
+
+cookbook_glob_path = cookbook_root + "/*"
+
+Dir.glob(cookbook_glob_path).each do |dir|
+  cookbook_name = File.basename(dir)
+  attribute_dir = dir + "/attributes"
+  recipes_dir   = dir + "/recipes"
+
+  incremental_file_search(attribute_dir, cookbook_name)  
+  incremental_file_search(recipes_dir,   cookbook_name)  
+end
+
+cookbook_create = Chef::Knife::CookbookCreate.new
+
+@depends.each_key do |cookbook_name|
+  cookbook_path = cookbook_root + "/" + cookbook_name
+  metadata_path = cookbook_path + "/metadata.rb"
+
+  unless File.exists?(metadata_path)
+    cookbook_create.create_metadata(cookbook_root, cookbook_name, copyright, email, license, readme_format)
+  end
+  set_depends_metadatarb(metadata_path, cookbook_name)
+end 
