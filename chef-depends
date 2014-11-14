@@ -9,6 +9,7 @@ require 'chef/knife/cookbook_create'
 @depends     = {}
 @pattern1    = /include_(attribute|recipe)\s+['"](.+)['"]/
 @pattern2    = /include_(attribute|recipe)\(\s*['"](.+)['"]\s*\)/
+@version     = "0.0.1"
 
 def check_license(license_name)
   licenses = ["apachev2", "gplv2", "gplv3", "mit", "none"]
@@ -82,6 +83,11 @@ def set_depends_metadatarb(metadata_path, cookbook_name)
   end
 end
 
+def show_version()
+  puts("#{File.basename(__FILE__)} #{@version}")
+  exit
+end
+
 OptionParser.new do |opt|
   opt.on("-c FILE_PATH", "--config FILE_PATH", "The configuration file to use"){|v| @parsed_args[:config] = v }
   opt.on("--cookbook COOKBOO_DIR", "Path to cookbook"){|v| @parsed_args[:cookbook] = v }
@@ -89,6 +95,7 @@ OptionParser.new do |opt|
   opt.on("-e [MAIL]", "--email [MAIL]", "Email (default YOUR_EMAIL)"){|v| @parsed_args[:email] = v }
   opt.on("-l [LICENSE]", "--license [LICENSE]", "License (default none)"){|v| @parsed_args[:license] = v }
   opt.on("-r [FORMAT]", "--readme-format [FORMAT]", "README format (default .md)"){|v| @parsed_args[:readme_format] = v }
+  opt.on("-v", "--version", "Show version"){|v| show_version() }
   opt.parse!(ARGV)
 end
 
