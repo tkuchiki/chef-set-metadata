@@ -90,7 +90,7 @@ end
 
 OptionParser.new do |opt|
   opt.on("-c FILE_PATH", "--config FILE_PATH", "The configuration file to use"){|v| @parsed_args[:config] = v }
-  opt.on("--cookbook COOKBOO_DIR", "Path to cookbook"){|v| @parsed_args[:cookbook] = v }
+  opt.on("--cookbook COOKBOOK_DIR", "Path to cookbook"){|v| @parsed_args[:cookbook] = v }
   opt.on("--copyright [COPYRIGHT]", "Copyright (default YOUR_COMPANY_NAME)"){|v| @parsed_args[:copyright] = v }
   opt.on("-e [MAIL]", "--email [MAIL]", "Email (default YOUR_EMAIL)"){|v| @parsed_args[:email] = v }
   opt.on("-l [LICENSE]", "--license [LICENSE]", "License (default none)"){|v| @parsed_args[:license] = v }
