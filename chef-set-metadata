@@ -87,7 +87,7 @@ def set_name_metadatarb(metadata_path, cookbook_name)
   metadata = Chef::Cookbook::Metadata.new
   metadata.from_file(metadata_path)
 
-  if metadata.name == ""
+  if metadata.name.nil? || metadata.name == ""
     File.open(metadata_path, "a") do |file|
       file.puts("name             '#{cookbook_name}'")
       puts("Added name '#{cookbook_name}' in #{metadata_path}")
