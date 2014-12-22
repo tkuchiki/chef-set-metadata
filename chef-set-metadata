@@ -33,13 +33,13 @@ def retrieve_cookbook_root()
   return Chef::Config[:cookbook_path]
 end
 
-def incremental_file_search(dir, cookbook_name)
+def search_depends(dir, cookbook_name)
   Dir.glob(dir + '/**/*').each do |filepath|
-    check_file(filepath, cookbook_name) if File.file?(filepath)
+    check_depends(filepath, cookbook_name) if File.file?(filepath)
   end
 end
 
-def check_file(filename, cookbook_name)
+def check_depends(filename, cookbook_name)
   File.open(filename, "r") do |file|
     file.each_line do |line|
       set_depends(line, @pattern1, cookbook_name)
@@ -78,7 +78,19 @@ def set_depends_metadatarb(metadata_path, cookbook_name)
   diff_depends.each do |dep|
     File.open(metadata_path, "a") do |file|
       file.puts("depends          '#{dep}'")
-      puts("Added depends #{dep} in #{metadata_path}")
+      puts("Added depends '#{dep}' in #{metadata_path}")
+    end
+  end
+end
+
+def set_name_metadatarb(metadata_path, cookbook_name)
+  metadata = Chef::Cookbook::Metadata.new
+  metadata.from_file(metadata_path)
+
+  if metadata.name == ""
+    File.open(metadata_path, "a") do |file|
+      file.puts("name             '#{cookbook_name}'")
+      puts("Added name '#{cookbook_name}' in #{metadata_path}")
     end
   end
 end
@@ -95,6 +107,8 @@ OptionParser.new do |opt|
   opt.on("-e [MAIL]", "--email [MAIL]", "Email (default YOUR_EMAIL)"){|v| @parsed_args[:email] = v }
   opt.on("-l [LICENSE]", "--license [LICENSE]", "License (default none)"){|v| @parsed_args[:license] = v }
   opt.on("-r [FORMAT]", "--readme-format [FORMAT]", "README format (default .md)"){|v| @parsed_args[:readme_format] = v }
+  opt.on("-d", "--set-depends", "Set depends"){|v| @parsed_args[:set_depends] = v }
+  opt.on("-n", "--set-name", "Set name"){|v| @parsed_args[:set_name] = v }
   opt.on("-v", "--version", "Show version"){|v| show_version() }
   opt.parse!(ARGV)
 end
@@ -110,25 +124,41 @@ copyright     = @parsed_args[:copyright]     || "YOUR_COMPANY_NAME"
 email         = @parsed_args[:email]         || "YOUR_EMAIL"
 readme_format = @parsed_args[:readme_format] || "md"
 
-cookbook_glob_path = cookbook_root + "/*"
-
-Dir.glob(cookbook_glob_path).each do |dir|
-  cookbook_name = File.basename(dir)
-  attribute_dir = dir + "/attributes"
-  recipes_dir   = dir + "/recipes"
-
-  incremental_file_search(attribute_dir, cookbook_name)  
-  incremental_file_search(recipes_dir,   cookbook_name)  
-end
-
 cookbook_create = Chef::Knife::CookbookCreate.new
 
-@depends.each_key do |cookbook_name|
-  cookbook_path = cookbook_root + "/" + cookbook_name
-  metadata_path = cookbook_path + "/metadata.rb"
+cookbook_glob_path = cookbook_root + "/*"
 
-  unless File.exists?(metadata_path)
-    cookbook_create.create_metadata(cookbook_root, cookbook_name, copyright, email, license, readme_format)
+if @parsed_args.has_key?(:set_depends) && @parsed_args[:set_depends]
+  Dir.glob(cookbook_glob_path).each do |dir|
+    cookbook_name = File.basename(dir)
+    attribute_dir = dir + "/attributes"
+    recipes_dir   = dir + "/recipes"
+  
+    search_depends(attribute_dir, cookbook_name)  
+    search_depends(recipes_dir,   cookbook_name)  
   end
-  set_depends_metadatarb(metadata_path, cookbook_name)
-end 
+  
+  @depends.each_key do |cookbook_name|
+    cookbook_path = cookbook_root + "/" + cookbook_name
+    metadata_path = cookbook_path + "/metadata.rb"
+  
+    unless File.exists?(metadata_path)
+      cookbook_create.create_metadata(cookbook_root, cookbook_name, copyright, email, license, readme_format)
+    end
+    set_depends_metadatarb(metadata_path, cookbook_name)
+  end
+end
+
+if @parsed_args.has_key?(:set_name) && @parsed_args[:set_name]
+  Dir.glob(cookbook_glob_path).each do |dir|
+    cookbook_name = File.basename(dir)
+    cookbook_path = cookbook_root + "/" + cookbook_name
+    metadata_path = cookbook_path + "/metadata.rb"
+    
+    unless File.exists?(metadata_path)
+      cookbook_create.create_metadata(cookbook_root, cookbook_name, copyright, email, license, readme_format)
+    else
+      set_name_metadatarb(metadata_path, cookbook_name)
+    end
+  end
+end
