@@ -1,9 +1,11 @@
-chef-depends
+chef-set-metadata
 ============
 
-Append "depends" to a metadata.rb
+Append "depends" and "name" to a metadata.rb
 
 ## Example
+
+### depends
 
 ~~~~
 $ tree ./cookbooks
@@ -25,7 +27,7 @@ include_attribute "hoge"
 ~~~~
 
 ~~~~
-$ ./chef-depends --cookbook ./cookbook
+$ ./chef-set-metadata --cookbook ./cookbook -d
 ** Creating metadata for cookbook: mysql
 Added depends hoge in ./cookbooks/mysql/metadata.rb
 ** Creating metadata for cookbook: nginx
@@ -67,16 +69,67 @@ version          '0.1.0'
 depends          'hoge'
 ~~~~
 
+### name
+
+~~~~
+$ tree cookbooks/
+cookbooks/
+├── mysql
+└── nginx
+    └── metadata.rb
+
+2 directories, 1 file
+~~~~
+
+~~~~
+$ cat ./cookbooks/nginx/metadata.rb
+maintainer       'YOUR_COMPANY_NAME'
+maintainer_email 'YOUR_EMAIL'
+license          'All rights reserved'
+description      'Installs/Configures s3cmd'
+
+version          '0.1.0'
+~~~~
+
+~~~~
+$ ./chef-set-metadata --cookbook ./cookbook -n
+** Creating metadata for cookbook: mysql
+Added name 'nginx' in cookbooks//nginx/metadata.rb
+~~~~
+
+~~~~
+$ cat cookbooks/nginx/metadata.rb
+maintainer       'YOUR_COMPANY_NAME'
+maintainer_email 'YOUR_EMAIL'
+license          'All rights reserved'
+description      'Installs/Configures nginx'
+
+version          '0.1.0'
+name             'nginx'
+
+$ cat cookbooks/mysql/metadata.rb
+name             'mysql'
+maintainer       'YOUR_COMPANY_NAME'
+maintainer_email 'YOUR_EMAIL'
+license          'All rights reserved'
+description      'Installs/Configures mysql'
+
+version          '0.1.0'
+~~~~
+
 ## Usage
 
 ~~~~
-$ ./chef-depends -h
-Usage: chef-depends [options]
+$ ./chef-set-metadata -h
+Usage: chef-set-metadata [options]
     -c, --config FILE_PATH           The configuration file to use
-        --cookbook COOKBOO_DIR       Path to cookbook
+        --cookbook COOKBOOK_DIR      Path to cookbook
         --copyright [COPYRIGHT]      Copyright (default YOUR_COMPANY_NAME)
     -e, --email [MAIL]               Email (default YOUR_EMAIL)
     -l, --license [LICENSE]          License (default none)
     -r, --readme-format [FORMAT]     README format (default .md)
+    -d, --set-depends                Set depends
+    -n, --set-name                   Set name
     -v, --version                    Show version
 ~~~~
+
